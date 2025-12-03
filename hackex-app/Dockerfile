@@ -3,8 +3,8 @@ FROM php:8.4-fpm-alpine
 
 WORKDIR /var/www/html
 
-# Install system packages
-RUN apk add --no-cache zip unzip git curl sqlite bash oniguruma-dev libzip-dev \
+# Install system packages including nginx and supervisor
+RUN apk add --no-cache zip unzip git curl sqlite bash nginx supervisor oniguruma-dev libzip-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring bcmath zip
 
 # Install Composer
@@ -13,6 +13,9 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 # Copy project
 COPY . /var/www/html
 
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/http.d/default.conf
+
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 storage bootstrap/cache
@@ -20,20 +23,31 @@ RUN chown -R www-data:www-data /var/www/html \
 # Install dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Create required directories
-RUN mkdir -p storage/framework/{cache,sessions,views} storage/app/public bootstrap/cache
+# Create required Laravel directories
+RUN mkdir -p storage/framework/{cache,sessions,views} \
+    storage/app/public \
+    storage/app/uploads \
+    bootstrap/cache \
+    database
 
-# Ensure .env exists (avoid key:generate error)
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
+# Create SQLite database file
+RUN touch database/database.sqlite \
+    && chmod 664 database/database.sqlite
 
-# Laravel optimization
-RUN php artisan key:generate --force \
+# Copy .env.example to .env if not exists and run Laravel optimizations
+RUN cp .env.example .env \
+    && php artisan key:generate --force \
+    && php artisan migrate --force \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
+# Set final permissions
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 storage database
+
 # Expose HTTP port
 EXPOSE 80
 
-# Start built-in PHP server
-CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
+# Start PHP-FPM, queue worker, and Nginx
+CMD php-fpm -D && php artisan queue:work --daemon & nginx -g "daemon off;"
