@@ -1,18 +1,31 @@
-# Use official PHP 8.4 FPM image
+# Use official PHP 8.4 FPM Alpine image
 FROM php:8.4-fpm-alpine
 
 WORKDIR /var/www/html
 
-# Install system packages and PHP dependencies
+# Install system dependencies and build tools
 RUN apk add --no-cache \
-        zip unzip git curl sqlite bash oniguruma-dev mysql-client mysql-dev autoconf g++ make libc-dev \
+    bash \
+    zip \
+    unzip \
+    git \
+    curl \
+    sqlite \
+    mysql-client \
+    libzip-dev \
+    oniguruma-dev \
+    zlib-dev \
+    autoconf \
+    g++ \
+    make \
+    libc-dev \
     && docker-php-ext-install pdo pdo_mysql mbstring bcmath zip \
     && apk del autoconf g++ make libc-dev
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy project
+# Copy project files
 COPY . /var/www/html
 
 # Set permissions
@@ -22,7 +35,7 @@ RUN chown -R www-data:www-data /var/www/html \
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Create required directories
+# Create required Laravel directories
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/app/public bootstrap/cache
 
 # Laravel optimization
