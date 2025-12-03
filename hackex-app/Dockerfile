@@ -5,7 +5,7 @@ FROM richarvey/nginx-php-fpm:latest
 WORKDIR /var/www/html
 
 # Copy application files
-COPY hackex-app /var/www/html
+COPY /var/www/html
 
 # Install system packages and PHP dependencies
 RUN apk add --no-cache \
