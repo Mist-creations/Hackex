@@ -1,53 +1,39 @@
 # Use official PHP 8.4 FPM image
 FROM php:8.4-fpm-alpine
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Install system dependencies and PHP extensions
-RUN apk add --no-cache \
-        zip \
-        unzip \
-        git \
-        curl \
-        sqlite \
-        bash \
-        oniguruma-dev \
-        mysql-client \
-        mysql-dev \
-        libzip-dev \
-        autoconf \
-        g++ \
-        make \
-        libc-dev \
-    && docker-php-ext-install pdo pdo_mysql mbstring bcmath zip \
-    && apk del autoconf g++ make libc-dev
+# Install system packages
+RUN apk add --no-cache zip unzip git curl sqlite bash oniguruma-dev libzip-dev \
+    && docker-php-ext-install pdo pdo_mysql mbstring bcmath zip
 
 # Install Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# Copy project files
+# Copy project
 COPY . /var/www/html
 
-# Set proper permissions
+# Set permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 storage bootstrap/cache
 
-# Install PHP dependencies via Composer
+# Install dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-# Create required Laravel directories
+# Create required directories
 RUN mkdir -p storage/framework/{cache,sessions,views} storage/app/public bootstrap/cache
 
-# Copy .env.example to .env if not exists and run Laravel optimizations
-RUN cp .env.example .env \
-    && php artisan key:generate --force \
+# Ensure .env exists (avoid key:generate error)
+RUN if [ ! -f .env ]; then cp .env.example .env; fi
+
+# Laravel optimization
+RUN php artisan key:generate --force \
     && php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache
 
-# Expose port 80
+# Expose HTTP port
 EXPOSE 80
 
-# Start PHP-FPM
-CMD ["php-fpm"]
+# Start built-in PHP server
+CMD ["php", "-S", "0.0.0.0:80", "-t", "public"]
