@@ -1,0 +1,15 @@
+hackex-app/vendor/
+hackex-app/node_modules/
+hackex-app/storage/logs/*.log
+hackex-app/storage/framework/cache/*
+hackex-app/storage/framework/sessions/*
+hackex-app/storage/framework/views/*
+hackex-app/database/database.sqlite
+hackex-app/.env
+.git/
+.DS_Store
+*.md
+start.sh
+monitor.sh
+HackEx-test.zip
+test-app.zip

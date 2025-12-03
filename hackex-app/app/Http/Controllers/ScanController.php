@@ -20,11 +20,6 @@ class ScanController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        Log::info("Store method called", [
-            'has_file' => $request->hasFile('zip_file'),
-            'has_url' => $request->has('url'),
-            'all_keys' => array_keys($request->all()),
-        ]);
         
         $validator = Validator::make($request->all(), [
             'url' => 'nullable|url|required_without:zip_file',
@@ -71,41 +66,18 @@ class ScanController extends Controller
         if ($request->hasFile('zip_file')) {
             $file = $request->file('zip_file');
             
-            Log::info("ZIP file upload received", [
-                'original_name' => $file->getClientOriginalName(),
-                'size' => $file->getSize(),
-                'mime_type' => $file->getMimeType(),
-                'is_valid' => $file->isValid(),
-                'error' => $file->getError(),
-                'error_message' => $file->getErrorMessage(),
-            ]);
-            
             if (!$file->isValid()) {
-                Log::error("Invalid file upload", [
-                    'error' => $file->getError(),
-                    'message' => $file->getErrorMessage(),
-                ]);
-                
                 return back()->withErrors([
                     'zip_file' => 'File upload failed: ' . $file->getErrorMessage(),
                 ])->withInput();
             }
             
             try {
-                $path = $file->store('uploads');
-                $scanData['uploaded_zip_path'] = $path;
-                
-                Log::info("ZIP file stored", [
-                    'path' => $path,
-                    'full_path' => storage_path('app/' . $path),
-                    'exists' => file_exists(storage_path('app/' . $path)),
-                    'size_on_disk' => file_exists(storage_path('app/' . $path)) ? filesize(storage_path('app/' . $path)) : 0,
-                ]);
+                // Save file directly to storage/app/uploads
+                $filename = Str::random(40) . '.zip';
+                $file->move(storage_path('app/uploads'), $filename);
+                $scanData['uploaded_zip_path'] = 'uploads/' . $filename;
             } catch (\Exception $e) {
-                Log::error("Failed to store ZIP file", [
-                    'error' => $e->getMessage(),
-                ]);
-                
                 return back()->withErrors([
                     'zip_file' => 'Failed to save uploaded file. Please try again.',
                 ])->withInput();
